@@ -1,0 +1,39 @@
+# ============================================================
+# Search Typeahead Application Configuration
+# ============================================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: search-typeahead
+
+# ============================================================
+# Dataset Configuration
+# Path to the CSV file loaded on startup.
+# Format: query,count
+# ============================================================
+dataset:
+  csv-path: classpath:queries.csv
+
+# ============================================================
+# Actuator Endpoints
+# Expose health and metrics for monitoring.
+# ============================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+  endpoint:
+    health:
+      show-details: always
+
+# ============================================================
+# Logging
+# ============================================================
+logging:
+  level:
+    com.typeahead: DEBUG
+    root: INFO
