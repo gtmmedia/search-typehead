@@ -4,6 +4,7 @@ import com.typeahead.model.SearchEvent;
 import com.typeahead.service.MetricsService;
 import com.typeahead.service.SearchService;
 import com.typeahead.service.TrendingService;
+import com.typeahead.repository.SearchQueryRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -19,8 +20,9 @@ public class BatchWriterTest {
         SearchService searchService = Mockito.mock(SearchService.class);
         TrendingService trendingService = Mockito.mock(TrendingService.class);
         MetricsService metricsService = Mockito.mock(MetricsService.class);
+        SearchQueryRepository searchQueryRepository = Mockito.mock(SearchQueryRepository.class);
 
-        BatchWriter writer = new BatchWriter(queue, searchService, trendingService, metricsService);
+        BatchWriter writer = new BatchWriter(queue, searchService, trendingService, metricsService, searchQueryRepository);
 
         queue.enqueue(new SearchEvent("iphone", 1));
         queue.enqueue(new SearchEvent("iphone", 2));

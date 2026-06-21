@@ -1,61 +1,100 @@
 # Search Typeahead System
 
-## Project Overview
-The Search Typeahead System is a high-performance, distributed backend and modern React frontend application designed to provide sub-millisecond search autocomplete suggestions, track trending searches, and handle high-throughput search volumes.
+A high-performance, distributed-like autocomplete service designed to support sub-millisecond prefix suggestions, track trending searches, and aggregate high-throughput search queries asynchronously.
 
-## Architecture
-The system consists of a modern React frontend communicating with a Spring Boot backend. 
+---
 
-Key architectural components include:
-1. **Trie Data Structure**: A custom, thread-safe Prefix Tree optimized for fast prefix matching ($O(P + N)$).
-2. **Consistent Hashing & Cache Cluster**: Distributes requests across a simulated in-memory distributed cache cluster to minimize latency and ensure high cache hit rates.
-3. **Batch Writes**: Handles massive write volumes asynchronously. Searches are queued and aggregated in batches to prevent locking issues on the core Trie structure.
-4. **Trending Service**: Maintains dual-ranking modes (historical vs. trending) with a decay mechanism to surface both all-time popular queries and recent viral spikes.
+## 📸 Demo & Screenshots
 
-*(For detailed architectural diagrams and explanations, refer to `architecture.md`)*
+### 1. Autocomplete & Suggestions Dropdown
+As a user types, suggestions are retrieved from the cache node assigned to the search term prefix on the consistent hash ring:
+![Dropdown Autocomplete Suggestions](./docs/images/dropdown_suggestions.png)
 
-## APIs
+### 2. Live Performance Metrics & Trending Dashboard
+System diagnostics panel tracking Average/p50/p95 latency, Cache Hit Rate, Write Reduction percentage, and real-time Search Trends:
+![Dashboard Metrics](./docs/images/dashboard_metrics.png)
 
-### 1. `GET /suggest?q={prefix}`
-Fetches autocomplete suggestions based on the provided prefix.
-- **Response**: `{"query": "ipho", "suggestions": ["iphone", "iphone 13", ...]}`
+### 3. Application Interaction Demo Video
+A screen recording of user searches, autocomplete queries, cache invalidations, and batch statistics:
+![Interaction Web Demo](./docs/images/typeahead_demo.webp)
 
-### 2. `POST /search`
-Records a completed search query.
-- **Payload**: `{"query": "iphone"}`
-- **Response**: `202 Accepted`
+---
 
-### 3. `GET /trending?mode={trending|historical}`
-Retrieves top search trends.
-- **Response**: `[{"word": "iphone", "score": 95.5, "totalCount": 100}, ...]`
+## 🏛️ System Architecture
 
-### 4. `GET /metrics`
-Returns system performance metrics (latency, cache hit rate, write reduction).
+The project consists of a React client communicating with a Spring Boot API server:
 
-### 5. `GET /batch/stats`
-Returns batch processing statistics.
+```mermaid
+flowchart TD
+    User([User Browser]) -->|Types 'ipho'| React[React Frontend]
+    
+    React -->|GET /suggest?q=ipho| SpringBoot[Spring Boot Backend]
+    React -->|POST /search| SpringBoot
+    React -->|GET /trending| SpringBoot
+    
+    SpringBoot --> CacheCluster[Cache Cluster]
+    SpringBoot --> Trie[Trie Data Structure]
+    SpringBoot --> SearchQueue[Search Queue]
+    
+    SearchQueue --> BatchWriter[Batch Writer]
+    BatchWriter -.->|Aggregates & Writes| Trie
+    BatchWriter -.->|Updates| Trending[Trending Service]
+    
+    CacheCluster -->|Cache Miss| Trie
+```
 
-## Setup Instructions
+1. **Custom Trie**: A thread-safe Prefix Tree ($O(P+N)$) matching letters to historical popularity scores.
+2. **Consistent Hash Caching**: Distributes prefix lookups across a simulated cache ring (`CacheNode-1`, `CacheNode-2`, `CacheNode-3`) using virtual nodes to balance key distribution.
+3. **Batch Writing**: Incoming search submissions (`POST /search`) are queued in a concurrent queue. A scheduler flushes and aggregates searches periodically, reducing write-lock contention.
+4. **Trending & Decay**: Computes dynamic trending scores combining total count and recent frequency. A scheduler decays counts over time to allow new trends to surface.
+
+*(For detailed information, see [architecture.md](file:///c:/Users/HP/Desktop/CODING/search-typehead/architecture.md))*
+
+---
+
+## 📊 Performance Report
+
+A mock search load simulation was run to measure system throughput:
+* **Average Latency**: **11.45 ms**
+* **p50 Latency**: **2.00 ms** (50% of suggestions return in under 2ms)
+* **p95 Latency**: **70.00 ms** (tail latency including cold starts)
+* **Write Reduction**: **70.37%** (81 raw searches aggregated into 24 unique Trie inserts)
+* **Cache Hit Rate**: **14.0%** (lazy TTL evictions activated)
+
+---
+
+## 💾 Dataset Source & Loading
+
+* **Source File**: [queries.csv](file:///c:/Users/HP/Desktop/CODING/search-typehead/src/main/resources/queries.csv)
+* **Format**: `query,count` (e.g., `samsung galaxy s24 ultra,14100`)
+* **Loading Mechanism**:
+  1. On startup, [CsvLoader.java](file:///c:/Users/HP/Desktop/CODING/search-typehead/src/main/java/com/typeahead/loader/CsvLoader.java) reads the CSV.
+  2. Rows are validated (malformed lines are skipped to protect the engine).
+  3. Valid queries are loaded into the Trie.
+  4. The CSV source path is configurable in [application.yml](file:///c:/Users/HP/Desktop/CODING/search-typehead/src/main/resources/application.yml) under `dataset.csv-path`.
+
+---
+
+## 🛠️ Setup Instructions
 
 ### Prerequisites
-- Java 17+
-- Maven 3.8+
-- Node.js 18+ & npm
+* Java 17+ (JDK 21 recommended)
+* Maven 3.8+
+* Node.js 18+ & npm
 
 ### Running the Backend (Spring Boot)
-1. Navigate to the project root directory.
-2. Build the project using Maven:
+1. Build the package using Maven:
    ```bash
    ./mvnw clean install
    ```
-3. Run the Spring Boot application:
+2. Start the Spring Boot application:
    ```bash
    ./mvnw spring-boot:run
    ```
-4. The backend will start on `http://localhost:8080`.
+3. The server starts on `http://localhost:8080`.
 
 ### Running the Frontend (React + Vite)
-1. Navigate to the `frontend` directory:
+1. Navigate to the frontend folder:
    ```bash
    cd frontend
    ```
@@ -63,26 +102,36 @@ Returns batch processing statistics.
    ```bash
    npm install
    ```
-3. Start the Vite development server:
+3. Run the development server:
    ```bash
    npm run dev
    ```
-4. Open the application in your browser at `http://localhost:5173` (or the port specified by Vite).
+4. Access the web dashboard at `http://localhost:5173`.
 
-## Performance Metrics
-The system tracks and exposes the following metrics:
-- **Average Latency**: Tracks the mean response time for suggestion queries.
-- **p50 & p95 Latency**: Percentile-based latency metrics to monitor tail latency.
-- **Cache Hit / Miss Rate**: Evaluates the efficiency of the consistent hashing cache.
-- **Write Reduction %**: Measures the efficiency of the Batch Writer in deduplicating writes before persisting them to the Trie.
+---
 
-## Tradeoffs
-- **Eventual Consistency vs. Strong Consistency**: Batch writing means that newly searched terms will not instantly appear in suggestions until the background batch job processes the queue. This is a deliberate tradeoff for high write throughput.
-- **In-Memory Storage vs. Persistence**: The current system stores the Trie and Cache in-memory for sub-millisecond latency. A crash would result in data loss unless an external persistent store (like Redis/Cassandra) is introduced.
-- **Cache Staleness**: Cached items have a Time-To-Live (TTL). Highly volatile trends might take a few seconds to bypass the cache and update.
+## 📡 API Documentation
 
-## Future Improvements
-- **Persistent Storage**: Integrate Redis or a NoSQL database (Cassandra) for persistence and crash recovery.
-- **Fuzzy Matching / Typo Tolerance**: Enhance the Trie with Levenshtein distance algorithms to support typo-tolerant autocomplete (e.g., "ihpone" -> "iphone").
-- **Personalization**: Adjust suggestion rankings based on user context, location, or search history.
-- **Horizontal Scaling**: Deploy the application across multiple server instances using a real distributed cache (like Redis Cluster) instead of the simulated in-memory cluster.
+### 1. `GET /suggest?q={prefix}`
+Returns autocomplete suggestions.
+* **Response**: `{"query": "ipho", "suggestions": ["iphone", "iphone 15", ...]}`
+
+### 2. `POST /search`
+Submits a query to the concurrent queue for batch writing.
+* **Payload**: `{"query": "iphone"}`
+* **Response**: `202 Accepted`
+
+### 3. `GET /trending?mode={trending|historical}`
+Retrieves ranked trends.
+* **Response**: `[{"word": "iphone", "score": 95.5, "totalCount": 100}]`
+
+### 4. `GET /metrics`
+Returns performance and cache statistics.
+
+---
+
+## ⚖️ Design Choices & Trade-offs
+
+1. **In-Memory Trie vs. SQL Database**: We store the Trie in RAM for sub-millisecond lookups. The trade-off is data loss on server restarts (requiring CsvLoader to reload state).
+2. **Simulated Cache Nodes vs. Redis**: A Treemap-based consistent hash ring and maps simulate real distributed nodes. This runs zero-dependency locally but requires replacement with a Redis Cluster for multi-server deployments.
+3. **Eventual vs. Strong Consistency**: Search counts are updated via background batch jobs rather than real-time blocking writes, protecting search performance under load.
