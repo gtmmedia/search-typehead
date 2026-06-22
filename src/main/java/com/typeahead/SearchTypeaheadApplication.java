@@ -7,11 +7,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * Entry point for the Search Typeahead application.
  *
- * Phase 1 features:
- *  - Trie-based prefix matching for search suggestions
- *  - CSV dataset loading on startup
- *  - Real-time query submission with popularity tracking
- *  - Basic metrics (search count, suggestion requests, avg latency)
+ * Features:
+ *  - Trie-based prefix matching for search suggestions (O(P+N))
+ *  - H2 database persistence — hydrates Trie on startup; falls back to CSV on first run
+ *  - Consistent hash ring routing across simulated cache nodes
+ *  - Batch writing with aggregation to minimise Trie lock contention
+ *  - Trending service with historical and recency-weighted modes + decay
+ *  - Metrics endpoint exposing latency, cache hit rate, and write reduction
  */
 @SpringBootApplication
 @EnableScheduling

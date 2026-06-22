@@ -17,8 +17,14 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# Create a directory for the H2 database files (mounted as a volume)
+RUN mkdir -p /app/data
+
 # Copy the built jar file from the build stage
 COPY --from=build /app/target/search-typeahead-1.0.0.jar app.jar
+
+# Persist the H2 database across container restarts
+VOLUME /app/data
 
 # Expose backend port
 EXPOSE 8080

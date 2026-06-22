@@ -116,4 +116,3 @@ public class BatchWriter {
         metricsService.recordBatchedWrites(batchedWritesCount);
     }
 }
-}

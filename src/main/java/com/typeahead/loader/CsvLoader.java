@@ -141,4 +141,3 @@ public class CsvLoader implements CommandLineRunner {
                 successCount, errorCount, duration, trie.size());
     }
 }
-}
